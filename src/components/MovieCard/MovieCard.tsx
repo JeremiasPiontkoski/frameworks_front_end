@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Movie } from '../../types/movie';
 
 interface MovieCardProps {
@@ -6,25 +7,23 @@ interface MovieCardProps {
 }
 
 export const MovieCard: React.FC<MovieCardProps> = ({ movie }) => {
-  const posterUrl = movie.poster_path
-    ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-    : 'https://placehold.co/500x750?text=Sem+Cartaz';
+  const navigate = useNavigate();
 
   return (
     <div className="col">
-      <div className="movie-card h-100">
-        <img
-          src={posterUrl}
-          className="card-img-top movie-poster"
-          alt={movie.title}
+      <div 
+        className="card h-100 movie-card-clickable" 
+        onClick={() => navigate(`/movie/${movie.id}`)}
+        style={{ cursor: 'pointer' }}
+      >
+        <img 
+          src={movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'placeholder.jpg'} 
+          className="card-img-top" 
+          alt={movie.title} 
         />
         <div className="card-body">
-          <h5 className="card-title">{movie.title}</h5>
-          <p className="card-text">
-            <small className="text-muted">
-              ⭐ {movie.vote_average.toFixed(1)} | {movie.release_date ? movie.release_date.substring(0, 4) : 'N/A'}
-            </small>
-          </p>
+          <h5 className="card-title text-truncate">{movie.title}</h5>
+          <p className="card-text text-warning"> {movie.vote_average}</p>
         </div>
       </div>
     </div>

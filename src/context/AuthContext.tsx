@@ -1,36 +1,53 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
-
-interface User {
-  username: string;
-  name: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
-}
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import type { AuthContextType, User } from '../types/auth';
+import { authService } from '../services/AuthService';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const STORAGE_KEY = 'auth_user';
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const login = (username: string, password: string): boolean => {
-    if (username === 'admin' && password === '123456') {
-      setUser({ username: 'admin', name: 'Administrador' });
-      return true;
+  useEffect(() => {
+    const storedUser = localStorage.getItem(STORAGE_KEY);
+    
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        setUser(parsed);
+      } catch (error) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
     }
-    return false;
+
+    setIsLoading(false)
+  }, []);
+
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const result = await authService.login(username, password);
+      if (result) {
+        setUser(result);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(result));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      return false;
+    }
   };
 
-  const logout = () => {
+  const logout = (): void => {
     setUser(null);
+    localStorage.removeItem(STORAGE_KEY);
+    authService.logout();
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

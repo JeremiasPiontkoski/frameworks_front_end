@@ -1,120 +1,175 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getPopularMovies } from '../../services/api';
-import type { Movie } from '../../types/movie';
-import { MovieCard } from '../../components/MovieCard/MovieCard';
-import { useAuth } from '../../context/AuthContext';
+import { getMovies, getGenres } from '../../services/api';
+import type { Movie, FilterType } from '../../types/movie';
+import { HomeNavbar } from '../../components/Home/HomeNavbar';
+import { Filters } from '../../components/Home/Filters';
+import { MovieGrid } from '../../components/Home/MovieGrid';
+import { Pagination } from '../../components/Home/Pagination';
+import { MESSAGES, PAGINATION } from '../../constants';
 
 export const Home: React.FC = () => {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { user, isAuthenticated, logout } = useAuth();
-  const navigate = useNavigate();
+  const [currentFilter, setCurrentFilter] = useState<FilterType>('popular');
+  const [currentPage, setCurrentPage] = useState<number>(PAGINATION.DEFAULT_PAGE);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  const [selectedTerm, setSelectedTerm] = useState<string>('');
+  const [searchInput, setSearchInput] = useState<string>('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState<string>('');
+
+  const [genreOptions, setGenreOptions] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
-    const fetchMovies = async () => {
+    const fetchGenres = async () => {
+      try {
+        const genres = await getGenres();
+        setGenreOptions(genres);
+      } catch (err) {
+        console.error(MESSAGES.errors.FETCH_GENRES_FAILED, err);
+      }
+    };
+    fetchGenres();
+  }, []);
+
+  useEffect(() => {
+    const fetchMoviesData = async () => {
       try {
         setLoading(true);
-        const data = await getPopularMovies(1);
+        setError(null);
+
+        const data = await getMovies(
+          currentFilter,
+          selectedTerm,
+          activeSearchTerm,
+          currentPage
+        );
+
         setMovies(data.results);
+        setTotalPages(data.total_pages);
       } catch (err) {
-        setError('Erro ao buscar dados na API! Por favor, tente novamente mais tarde.');
+        console.error('Erro ao buscar filmes:', err);
+        setError(MESSAGES.errors.FETCH_MOVIES_FAILED);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMovies();
-  }, []);
+    fetchMoviesData();
+  }, [currentFilter, selectedTerm, activeSearchTerm, currentPage]);
+
+  const handleFilterChange = (filter: FilterType) => {
+    setCurrentFilter(filter);
+    setCurrentPage(PAGINATION.DEFAULT_PAGE);
+
+    if (filter === 'country') {
+      setSelectedTerm('pt');
+    } else if (filter === 'genre' && genreOptions.length > 0) {
+      setSelectedTerm(String(genreOptions[0].id));
+    } else if (filter === 'classification') {
+      setSelectedTerm('L');
+    } else {
+      setSelectedTerm('');
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchInput.trim()) return;
+
+    setActiveSearchTerm(searchInput.trim());
+    setCurrentFilter('search');
+    setCurrentPage(PAGINATION.DEFAULT_PAGE);
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > PAGINATION.DEFAULT_PAGE) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handleSelectedTermChange = (term: string) => {
+    setSelectedTerm(term);
+    setCurrentPage(PAGINATION.DEFAULT_PAGE);
+  };
+
+  const getPageTitle = (): string => {
+    switch (currentFilter) {
+      case 'popular':
+        return 'Filmes Populares';
+      case 'country':
+        return 'Filtrar por País';
+      case 'genre':
+        return 'Filtrar por Gênero';
+      case 'classification':
+        return 'Filtrar por Classificação';
+      case 'search':
+        return `Resultados para: "${activeSearchTerm}"`;
+      default:
+        return 'Filmes';
+    }
+  };
 
   return (
     <>
-      {/* NAVBAR */}
-      <nav className="navbar navbar-expand-lg navbar-dark sticky-top">
-        <div className="container-fluid container-lg">
-          <div className="navbar-brand" style={{ cursor: 'pointer' }} onClick={() => navigate('/home')}>
-            🎬 Explorador de Filmes
-          </div>
+      <HomeNavbar
+        currentFilter={currentFilter}
+        onFilterChange={handleFilterChange}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
+        onSearchSubmit={handleSearchSubmit}
+      />
 
-          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span className="navbar-toggler-icon"></span>
-          </button>
+      <Filters
+        currentFilter={currentFilter}
+        selectedTerm={selectedTerm}
+        genreOptions={genreOptions}
+        onFilterChange={handleSelectedTermChange}
+      />
 
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav ms-auto align-items-center">
-              <li className="nav-item"><a className="nav-link active" href="#">Populares</a></li>
-              <li className="nav-item"><a className="nav-link" href="#">Por País</a></li>
-              <li className="nav-item"><a className="nav-link" href="#">Por Gênero</a></li>
-              <li className="nav-item"><a className="nav-link" href="#">Por Classificação</a></li>
-              
-              {/* BOTÃO DE LOGIN / PERFIL DINÂMICO */}
-              <li className="nav-item ms-lg-3">
-                {isAuthenticated ? (
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="text-white bg-dark px-3 py-1 rounded-pill" style={{ fontSize: '0.85rem' }}>
-                      Olá, {user?.name}
-                    </span>
-                    <button className="btn btn-sm btn-outline-danger px-3 rounded-pill" onClick={logout}>
-                      Sair
-                    </button>
-                  </div>
-                ) : (
-                  <button className="btn btn-sm btn-primary px-4 rounded-pill" onClick={() => navigate('/')}>
-                    Entrar
-                  </button>
-                )}
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-
-      {/* CONTEÚDO PRINCIPAL */}
       <main>
-        <div className="container mt-5">
-          <h1 className="text-center mb-5" id="page-title">Filmes Populares</h1>
-
-          {loading && (
-            <div className="text-center text-white">
-              <h3>Carregando filmes...</h3>
-            </div>
-          )}
+        <div className="container-fluid px-4 px-lg-5 mt-5">
+          <h1 className="text-center mb-5 text-white">
+            {getPageTitle()}
+          </h1>
 
           {error && (
             <div className="error-popup-overlay">
               <div className="error-popup-content">
-                <div className="error-popup-icon">⚠️</div>
+                <div className="error-popup-icon"></div>
                 <h3>Erro</h3>
                 <p>{error}</p>
-                <button className="error-popup-btn" onClick={() => setError(null)}>Fechar</button>
+                <button
+                  className="error-popup-btn"
+                  onClick={() => setError(null)}
+                >
+                  Fechar
+                </button>
               </div>
             </div>
           )}
 
-          {!loading && !error && (
-            <div id="movie-grid" className="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-              {movies.map((movie) => (
-                <MovieCard key={movie.id} movie={movie} />
-              ))}
-            </div>
-          )}
+          <MovieGrid
+            movies={movies}
+            loading={loading}
+            emptyMessage={MESSAGES.empty.NO_MOVIES}
+          />
+        </div>
 
-          <div className="container text-center my-5 pagination-section">
-          <div className="d-flex justify-content-center align-items-center gap-3">
-            <button id="prev-btn" className="btn btn-outline-primary" disabled>
-              &lt; Anterior
-            </button>
-            <p className="pagination-info m-0">
-              Página <span id="current-page">1</span> de <span id="total-pages">1</span>
-            </p>
-            <button id="next-btn" className="btn btn-outline-primary" disabled>
-              Próximo &gt;
-            </button>
-          </div>
-        </div>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPreviousClick={handlePreviousPage}
+          onNextClick={handleNextPage}
+        />
       </main>
     </>
   );

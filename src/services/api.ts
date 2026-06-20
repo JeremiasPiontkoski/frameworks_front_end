@@ -1,21 +1,78 @@
 import axios from 'axios';
+import { API_CONFIG } from '../constants';
+const apiKey = import.meta.env.REACT_APP_TMDB_API_KEY;
 
 export const api = axios.create({
-  baseURL: 'https://api.themoviedb.org/3',
+  baseURL: API_CONFIG.BASE_URL,
   headers: {
     accept: 'application/json',
-    Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlNzZkZDNlM2E4YjFmNzYzYzk4NDlkYWE5MDk5YTMxNCIsIm5iZiI6MTc1OTM1Nzg5MS4xNTY5OTk4LCJzdWIiOiI2OGRkYWJjM2ZkMWI5YzgyZWZiZGY5OTIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.h3gUtRKQ41-iYUQo64VApg93BMDlCezgGdXcZScNNH8',
+    Authorization: `Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlNzZkZDNlM2E4YjFmNzYzYzk4NDlkYWE5MDk5YTMxNCIsIm5iZiI6MTc1OTM1Nzg5MS4xNTY5OTk4LCJzdWIiOiI2OGRkYWJjM2ZkMWI5YzgyZWZiZGY5OTIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.h3gUtRKQ41-iYUQo64VApg93BMDlCezgGdXcZScNNH8`,
   },
 });
 
-export const getPopularMovies = async (page = 1) => {
-  const response = await api.get('/discover/movie', {
-    params: {
+export const getGenres = async () => {
+  try {
+    const response = await api.get('/genre/movie/list', {
+      params: { language: 'pt-BR' }
+    });
+    return response.data.genres;
+  } catch (error) {
+    console.error('Erro ao buscar gêneros:', error);
+    throw error;
+  }
+};
+
+export const getMovies = async (
+  filterType: string,
+  selectedValue: string,
+  searchTerm: string,
+  page = 1
+) => {
+  try {
+    let endpoint = '/discover/movie';
+    let params: any = {
       include_video: false,
       language: 'pt-BR',
       page: page,
       sort_by: 'popularity.desc',
-    },
-  });
-  return response.data;
+    };
+
+    switch (filterType) {
+      case 'country':
+        params.with_original_language = selectedValue;
+        break;
+      case 'genre':
+        params.with_genres = selectedValue;
+        break;
+      case 'classification':
+        endpoint = '/discover/movie';
+        params.certification_country = 'BR';
+        params.certification = selectedValue;
+        break;
+      case 'search':
+        endpoint = '/search/movie';
+        params.query = searchTerm;
+        break;
+      default:
+        break;
+    }
+
+    const response = await api.get(endpoint, { params });
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar filmes: ', error);
+    throw error;
+  }
+};
+
+export const getMovieById = async (id: string) => {
+  try {
+    const response = await api.get(`/movie/${id}`, {
+      params: { language: 'pt-BR' }
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao buscar filme ${id}:`, error);
+    throw error;
+  }
 };
