@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { API_CONFIG } from '../constants';
-const apiKey = import.meta.env.REACT_APP_TMDB_API_KEY;
+const apiKey = import.meta.env.VITE_TMDB_API_KEY;
 
 export const api = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   headers: {
     accept: 'application/json',
-    Authorization: `Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlNzZkZDNlM2E4YjFmNzYzYzk4NDlkYWE5MDk5YTMxNCIsIm5iZiI6MTc1OTM1Nzg5MS4xNTY5OTk4LCJzdWIiOiI2OGRkYWJjM2ZkMWI5YzgyZWZiZGY5OTIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.h3gUtRKQ41-iYUQo64VApg93BMDlCezgGdXcZScNNH8`,
+    Authorization: `Bearer ${apiKey}`
   },
 });
 
